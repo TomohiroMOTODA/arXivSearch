@@ -34,7 +34,7 @@ pip install arxiv matplotlib pandas numpy seaborn wordcloud requests openpyxl xl
 Or using the requirements file:
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ## Usage
@@ -44,7 +44,7 @@ pip install -r requirements.txt
 Run the analyzer with default settings:
 
 ```bash
-python main.py
+python -m arxiv_robotics_analyzer
 ```
 
 This will:
