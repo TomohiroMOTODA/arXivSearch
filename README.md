@@ -2,6 +2,11 @@
 
 A Python tool for analyzing research trends in robotics foundation models and Vision-Language-Action (VLA) papers from ArXiv.
 
+## TODO
+- [ ] Update installation instructions and usage command in README.md
+- [ ] Customize search terms for specific research areas
+- [ ] Output path customization
+
 ## Features
 
 - **Automated Paper Collection**: Search and collect papers from ArXiv using targeted keywords
@@ -77,12 +82,15 @@ The analyzer generates several output files:
 
 ```
 arxiv-robotics-analyzer/
-├── main.py                    # Main analyzer script
-├── pyproject.toml            # Project configuration
-├── requirements.txt          # Dependencies
-├── README.md                 # This file
-├── .gitignore               # Git ignore rules
-└── outputs/                 # Generated analysis files (created at runtime)
+├── src/
+│   └── arxiv-robotics-analyzer/   # Main analyzer package
+│       ├── __init__.py
+│       └── __main__.py
+├── pyproject.toml                 # Project configuration
+├── requirements.txt               # Dependencies
+├── README.md                      # This file
+├── .gitignore                     # Git ignore rules
+└── outputs/                       # Generated analysis files (created at runtime)
 ```
 
 ## API Rate Limits
@@ -132,7 +140,7 @@ If you use this tool in your research, please cite:
   title={ArXiv Robotics Research Trend Analyzer},
   author={Tomohiro Motoda},
   year={2025},
-  url={https://github.com/TomohiroMotoda/arxiv-robotics-analyzer}
+  url={https://github.com/TomohiroMOTODA/arXivSearch}
 }
 ```
 
