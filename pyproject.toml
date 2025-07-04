@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arxiv-robotics-analyzer"
+version = "1.0.0"
+description = "ArXiv research trend analyzer for robotics foundation models and vision-language-action papers"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+keywords = ["arxiv", "robotics", "research", "analysis", "foundation-models", "VLA"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+dependencies = [
+    "arxiv>=1.4.0",
+    "matplotlib>=3.5.0",
+    "pandas>=1.3.0",
+    "numpy>=1.21.0",
+    "seaborn>=0.11.0",
+    "wordcloud>=1.8.0",
+    "requests>=2.25.0",
+    "openpyxl>=3.0.0",
+    "xlsxwriter>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "black>=22.0",
+    "flake8>=4.0",
+    "mypy>=0.910",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/arxiv-robotics-analyzer"
+Repository = "https://github.com/yourusername/arxiv-robotics-analyzer"
+Issues = "https://github.com/yourusername/arxiv-robotics-analyzer/issues"
+
+[project.scripts]
+arxiv-robotics-analyzer = "main:main"
+
+[tool.setuptools]
+packages = ["arxiv-robotics-analyzer"]
+package-dir = {"" = "src"}
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
