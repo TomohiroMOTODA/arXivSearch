@@ -482,11 +482,11 @@ def main():
     analyzer.generate_summary_report(output_path='arxiv_robotics_analysis_report.md')
     
     # Data export (TODO: Data bugs in export)
-    # print("Exporting data...")
-    # analyzer.export_data(
-    #     csv_path='arxiv_robotics_papers.csv',
-    #     excel_path='arxiv_robotics_analysis.xlsx'
-    # )
+    print("Exporting data...")
+    analyzer.export_data(
+        csv_path='arxiv_robotics_papers.csv',
+        excel_path='arxiv_robotics_analysis.xlsx'
+    )
     
     print("\nAnalysis completed!")
     print("Generated files:")
