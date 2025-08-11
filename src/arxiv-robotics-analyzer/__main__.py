@@ -17,10 +17,22 @@ class ArxivRoboticsAnalyzer:
         self.papers = []
         self.search_terms = {
             'VLA': [
-                'Vision Language Action',
-                'Vision-Language-Action', 
-                'VLA model',
+                'Vision-Language-Action Model',
+                'Vision-Language-Action',
+                'VLA',
             ],
+            # 'Robotics Foundation Model': [
+            #     'Robotics Foundation Model',
+            #     'RMB',
+            #     'Robotic Foundation Model',
+            #     'Robot Foundation Model'
+            # ],
+            # 'Robotic Manipulation': [
+            #     'Robotic Manipulation',
+            #     'RM',
+            #     'Robotics Manipulation',
+            #     'Robot Manipulation'
+            # ]
         }
     
     def search_arxiv_api(self, query, max_results=1000, start_year=2020):
@@ -114,6 +126,50 @@ class ArxivRoboticsAnalyzer:
                     
     #         paper['relevance_score'] = score
     
+    def get_citation_count_semantic_scholar(self, arxiv_id):
+        """Get citation count from Semantic Scholar API"""
+        try:
+            # Semantic Scholar API endpoint
+            url = f"https://api.semanticscholar.org/graph/v1/paper/arXiv:{arxiv_id}"
+            params = {
+                'fields': 'citationCount,influentialCitationCount,year,title'
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    'citation_count': data.get('citationCount', 0),
+                    'influential_citation_count': data.get('influentialCitationCount', 0),
+                    'semantic_scholar_found': True
+                }
+            else:
+                return {
+                    'citation_count': 0,
+                    'influential_citation_count': 0,
+                    'semantic_scholar_found': False
+                }
+                
+        except Exception as e:
+            print(f"Citation lookup error for {arxiv_id}: {e}")
+            return {
+                'citation_count': 0,
+                'influential_citation_count': 0,
+                'semantic_scholar_found': False
+            }
+    
+    def fetch_citation_counts(self):
+        """Fetch citation counts for all papers"""
+        print("Fetching citation counts from Semantic Scholar...")
+        
+        for paper in tqdm(self.papers, desc="📚 Fetching citations", unit="📄 paper"):
+            citation_data = self.get_citation_count_semantic_scholar(paper['arxiv_id'])
+            paper.update(citation_data)
+            time.sleep(0.1)  # 100ms delay between requests
+            
+        print("Citation count fetching completed.")
+    
     def create_dataframe(self):
         """Create pandas DataFrame from papers"""
         if not self.papers:
@@ -134,18 +190,71 @@ class ArxivRoboticsAnalyzer:
                 'category': paper.get('category', ''),
                 'relevance_score': paper.get('relevance_score', 0),
                 'abstract_length': len(paper['summary']),
-                'num_authors': len(paper['authors'])
+                'num_authors': len(paper['authors']),
+                'citation_count': paper.get('citation_count', 0),
+                'influential_citation_count': paper.get('influential_citation_count', 0),
+                'semantic_scholar_found': paper.get('semantic_scholar_found', False)
             })
         
         self.df = pd.DataFrame(df_data)
         return self.df
+    
+    def display_paper_list(self, sort_by='published_date', ascending=False, top_n=50, show_citations=True):
+        """Display paper list in formatted table"""
+        if self.df is None:
+            print("No data available. Please run search first.")
+            return
+        
+        # Sort dataframe
+        df_sorted = self.df.sort_values(by=sort_by, ascending=ascending).head(top_n)
+        
+        print(f"\n=== Top {top_n} Papers (sorted by {sort_by}) ===")
+        print("=" * 120)
+        
+        for idx, paper in df_sorted.iterrows():
+            print(f"\n[{paper['arxiv_id']}] {paper['title'][:80]}...")
+            print(f"Authors: {paper['authors']}")
+            print(f"Published: {paper['published_date'].strftime('%Y-%m-%d')} | Category: {paper['category']} | Term: {paper['search_term']}")
+            
+            if show_citations and paper['semantic_scholar_found']:
+                print(f"Citations: {paper['citation_count']} (Influential: {paper['influential_citation_count']})")
+            elif show_citations:
+                print("Citations: Not available")
+            
+            print(f"ArXiv URL: https://arxiv.org/abs/{paper['arxiv_id']}")
+            print("-" * 120)
+    
+    def display_top_cited_papers(self, top_n=20):
+        """Display most cited papers"""
+        if self.df is None:
+            return
+            
+        # Filter papers with citation data
+        cited_papers = self.df[self.df['semantic_scholar_found'] == True]
+        
+        if cited_papers.empty:
+            print("No citation data available.")
+            return
+        
+        # Sort by citation count
+        top_cited = cited_papers.sort_values('citation_count', ascending=False).head(top_n)
+        
+        print(f"\n=== Top {top_n} Most Cited Papers ===")
+        print("=" * 120)
+        
+        for idx, paper in top_cited.iterrows():
+            print(f"\n{idx+1}. [{paper['arxiv_id']}] {paper['title'][:70]}...")
+            print(f"Authors: {paper['authors']}")
+            print(f"Published: {paper['published_date'].strftime('%Y-%m-%d')} | Citations: {paper['citation_count']} (Influential: {paper['influential_citation_count']})")
+            print(f"Category: {paper['category']} | Search Term: {paper['search_term']}")
+            print("-" * 120)
     
     def plot_publication_trends(self, save_path=None):
         """Plot publication trends over time"""
         if self.df is None:
             return
             
-        plt.figure(figsize=(15, 10))
+        plt.figure(figsize=(15, 12))
         
         # Yearly publication count
         plt.subplot(2, 2, 1)
@@ -187,6 +296,23 @@ class ArxivRoboticsAnalyzer:
         plt.ylabel('Number of Papers')
         plt.grid(True, alpha=0.3)
         
+        # Add citation analysis plot if citation data is available
+        if 'citation_count' in self.df.columns and self.df['citation_count'].sum() > 0:
+            plt.subplot(2, 3, 5)
+            cited_papers = self.df[self.df['citation_count'] > 0]
+            plt.scatter(cited_papers['year'], cited_papers['citation_count'], alpha=0.6)
+            plt.title('Citation Count vs Publication Year', fontsize=14, fontweight='bold')
+            plt.xlabel('Publication Year')
+            plt.ylabel('Citation Count')
+            plt.grid(True, alpha=0.3)
+            
+            plt.subplot(2, 3, 6)
+            plt.hist(self.df['citation_count'], bins=20, alpha=0.7, edgecolor='black')
+            plt.title('Citation Count Distribution', fontsize=14, fontweight='bold')
+            plt.xlabel('Citation Count')
+            plt.ylabel('Number of Papers')
+            plt.grid(True, alpha=0.3)
+        
         plt.tight_layout()
         
         if save_path:
@@ -199,7 +325,7 @@ class ArxivRoboticsAnalyzer:
         all_text = ' '.join([paper['title'] + ' ' + paper['summary'] for paper in self.papers])
         
         # Remove common words
-        stop_words = {'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'we', 'they', 'our', 'their'}
+        stop_words = {'the', 'and', 'from', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'we', 'they', 'our', 'their'}
         
         # Extract words
         words = re.findall(r'\b[a-zA-Z]{3,}\b', all_text.lower())
@@ -249,6 +375,14 @@ class ArxivRoboticsAnalyzer:
         report.append(f"- Analysis Period: {self.df['year'].min()} - {self.df['year'].max()}")
         report.append(f"- Average Relevance Score: {self.df['relevance_score'].mean():.2f}")
         
+        # Add citation statistics if available
+        if 'citation_count' in self.df.columns:
+            cited_papers = self.df[self.df['semantic_scholar_found'] == True]
+            report.append(f"- Papers with Citation Data: {len(cited_papers)}")
+            if len(cited_papers) > 0:
+                report.append(f"- Average Citations: {cited_papers['citation_count'].mean():.2f}")
+                report.append(f"- Total Citations: {cited_papers['citation_count'].sum()}")
+        
         report.append("\n## Yearly Submission Trends")
         yearly_stats = self.df.groupby('year').size()
         for year, count in yearly_stats.items():
@@ -263,6 +397,13 @@ class ArxivRoboticsAnalyzer:
         high_relevance = self.df[self.df['relevance_score'] >= 5].sort_values('relevance_score', ascending=False)
         for _, paper in high_relevance.head(10).iterrows():
             report.append(f"- [{paper['arxiv_id']}] {paper['title']} (Score: {paper['relevance_score']})")
+        
+        # Add most cited papers section
+        if 'citation_count' in self.df.columns and self.df['citation_count'].sum() > 0:
+            report.append("\n## Most Cited Papers (Top 10)")
+            top_cited = self.df[self.df['citation_count'] > 0].sort_values('citation_count', ascending=False).head(10)
+            for _, paper in top_cited.iterrows():
+                report.append(f"- [{paper['arxiv_id']}] {paper['title']} ({paper['citation_count']} citations)")
         
         report_text = '\n'.join(report)
         
@@ -311,6 +452,10 @@ def main():
         print("No papers found.")
         return
     
+    # Fetch citation counts
+    print("Fetching citation counts...")
+    analyzer.fetch_citation_counts()
+    
     # Calculate relevance scores
     # print("Calculating relevance scores...")
     # analyzer.calculate_relevance_scores()
@@ -318,6 +463,11 @@ def main():
     # Create dataframe
     print("Organizing data...")
     df = analyzer.create_dataframe()
+    
+    # Display paper lists
+    print("Displaying paper lists...")
+    analyzer.display_paper_list(sort_by='published_date', top_n=30)
+    analyzer.display_top_cited_papers(top_n=15)
     
     # Visualize results
     print("Generating plots...")
@@ -353,6 +503,7 @@ if __name__ == "__main__":
         import pandas as pd
         import seaborn as sns
         from wordcloud import WordCloud
+        from tqdm import tqdm
     except ImportError as e:
         print(f"Required libraries are not installed: {e}")
         print("Please install with:")
