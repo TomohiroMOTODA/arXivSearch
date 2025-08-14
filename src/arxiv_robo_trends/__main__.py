@@ -30,8 +30,12 @@ def main(keywords=None, start_year=2020):
     analyzer.display_top_cited_papers(top_n=15)
     
     # Visualize results
-    print("Generating enhanced plots...")
-    analyzer.plot_publication_trends(save_path='./results/arxiv_robotics_trends.png')
+    print("Generating quarterly publication trends...")
+    analyzer.plot_publication_trends(
+        save_path='./results/arxiv_robotics_trends.png',
+        csv_path='./results/quarterly_trends.csv',
+        tikz_path='./results/quarterly_trends.tex'
+    )
     analyzer.create_citation_analysis_plot(save_path='./results/arxiv_citation_analysis.png')
     
     # Keyword analysis
