@@ -1,18 +1,18 @@
-# ArXiv Robotics Research Trend Analyzer
+# 🤖📊 *ArXiv*RoboTrends: A Comprehensive Analysis of Robotics Research Trends on *ArXiv* ($\beta$)
 
 A Python tool for analyzing research trends in robotics foundation models and Vision-Language-Action (VLA) papers from ArXiv.
 
 ## TODO
-- [ ] Update installation instructions and usage command in README.md
+
+- [x] Update installation instructions and usage command in README.md
 - [ ] Customize search terms for specific research areas
 - [ ] Output path customization
 
 ## Features
 
-- **Automated Paper Collection**: Search and collect papers from ArXiv using targeted keywords
+- **Automated Paper Search**: Search  papers from ArXiv using targeted keywords
 - **Trend Analysis**: Analyze publication trends over time with detailed visualizations
 - **Keyword Analysis**: Generate word clouds and frequency analysis of research topics
-- **Relevance Scoring**: Calculate relevance scores based on keyword matching
 - **Data Export**: Export results to CSV, Excel, and markdown reports
 - **Comprehensive Visualization**: Generate publication trend plots and statistical charts
 
@@ -33,12 +33,9 @@ A Python tool for analyzing research trends in robotics foundation models and Vi
 ### Install Dependencies
 
 ```bash
-pip install arxiv matplotlib pandas numpy seaborn wordcloud requests openpyxl xlsxwriter
-```
+git clone https://github.com/TomohiroMOTODA/arXivSearch.git
+cd arXivSearch
 
-Or using the requirements file:
-
-```bash
 pip install -e .
 ```
 
@@ -49,17 +46,18 @@ pip install -e .
 Run the analyzer with default settings:
 
 ```bash
-python -m arxiv_robotics_analyzer
+python -m arxiv_roboz_trends
 ```
 
 This will:
+
 1. Search for papers from 2020 onwards
 2. Analyze trends and generate visualizations
 3. Create keyword analysis and word clouds
 4. Generate summary reports
 5. Export data to multiple formats
 
-### Customization
+### Customization (TBD)
 
 You can modify the search terms in the `ArxivRoboticsAnalyzer` class:
 
@@ -76,60 +74,29 @@ The analyzer generates several output files:
 - `arxiv_robotics_trends.png` - Publication trend visualizations
 - `arxiv_robotics_analysis_report.md` - Comprehensive analysis report
 - `arxiv_robotics_papers.csv` - Raw paper data in CSV format
-- `arxiv_robotics_analysis.xlsx` - Excel file with data and statistics
+- (TBD) `arxiv_robotics_analysis.xlsx` - Excel file with data and statistics
 
 ## Project Structure
 
-```
+```markdown
 arxiv-robotics-analyzer/
 ├── src/
 │   └── arxiv-robotics-analyzer/   # Main analyzer package
+│       ├── lib/
+│       │   ├── __init__.py
+│       │   └── arxiv_analyzer.py
 │       ├── __init__.py
 │       └── __main__.py
 ├── pyproject.toml                 # Project configuration
 ├── requirements.txt               # Dependencies
 ├── README.md                      # This file
 ├── .gitignore                     # Git ignore rules
-└── outputs/                       # Generated analysis files (created at runtime)
+└── results/                       # Generated analysis files (created at runtime)
 ```
-
-## API Rate Limits
-
-The tool includes built-in rate limiting to respect ArXiv's API guidelines:
-- 1-second delay between requests
-- Maximum 500 results per search term
-- Automatic duplicate removal
-
-## Example Analysis Output
-
-### Basic Statistics
-- Total Papers: ~500-1000 papers (depending on search criteria)
-- Analysis Period: 2020-2024
-- Average Relevance Score: Calculated based on keyword matching
-
-### Trend Analysis
-- Yearly publication trends
-- Category-wise growth patterns
-- Monthly submission patterns
-- Relevance score distributions
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- ArXiv for providing open access to research papers
-- The Python scientific computing community for excellent libraries
-- Robotics research community for advancing the field
 
 ## Citation
 
@@ -137,13 +104,9 @@ If you use this tool in your research, please cite:
 
 ```bibtex
 @software{arxiv_robotics_analyzer,
-  title={ArXiv Robotics Research Trend Analyzer},
+  title={{ArXiv}RoboTrends: A Comprehensive Analysis of Robotics Research Trends on {arXiv}},
   author={Tomohiro Motoda},
   year={2025},
   url={https://github.com/TomohiroMOTODA/arXivSearch}
 }
 ```
-
-## Contact
-
-For questions or suggestions, please open an issue on GitHub or contact [your.email@example.com].

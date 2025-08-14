@@ -9,6 +9,7 @@ requests>=2.25.0
 openpyxl>=3.0.0
 xlsxwriter>=3.0.0
 tqdm
+pyyaml
 
 # Optional development dependencies
 # Uncomment if needed for development

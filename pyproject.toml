@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "arxiv-robotics-analyzer"
+name = "arxiv-robo-trends"
 version = "1.0.0"
 description = "ArXiv research trend analyzer for robotics foundation models and vision-language-action papers"
 authors = [
@@ -35,7 +35,8 @@ dependencies = [
     "requests>=2.25.0",
     "openpyxl>=3.0.0",
     "xlsxwriter>=3.0.0",
-    "tqdm"
+    "tqdm",
+    "pyyaml"
 ]
 
 [project.optional-dependencies]
@@ -47,15 +48,15 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/arxiv-robotics-analyzer"
-Repository = "https://github.com/yourusername/arxiv-robotics-analyzer"
-Issues = "https://github.com/yourusername/arxiv-robotics-analyzer/issues"
+Homepage = "https://github.com/TomohiroMOTODA/arXivSearch"
+Repository = "https://github.com/TomohiroMOTODA/arXivSearch"
+Issues = "https://github.com/TomohiroMOTODA/arXivSearch/issues"
 
 [project.scripts]
 arxiv-robotics-analyzer = "main:main"
 
 [tool.setuptools]
-packages = ["arxiv-robotics-analyzer"]
+packages = ["arxiv_robo_trends"]
 package-dir = {"" = "src"}
 
 [tool.black]

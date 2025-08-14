@@ -1,40 +1,45 @@
-import arxiv
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-import seaborn as sns
-from collections import defaultdict, Counter
+from datetime import datetime
+from collections import Counter
 import re
 import time
-from wordcloud import WordCloud
 import requests
-import xml.etree.ElementTree as ET
-from urllib.parse import quote
+import yaml
+import numpy as np
+
+# Check for necessary library installations
+try:
+    import arxiv
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    import seaborn as sns
+    from wordcloud import WordCloud
+    import xml.etree.ElementTree as ET
+    from urllib.parse import quote
+    from tqdm import tqdm
+    from datetime import timedelta
+except ImportError as e:
+    print(f"Required libraries are not installed: {e}")
+    print("Please install with:")
+    print("pip install arxiv matplotlib pandas seaborn wordcloud openpyxl xlsxwriter")
+    exit(1)
+
+# Japanese font settings (optional)
+plt.rcParams['font.family'] = ['DejaVu Sans']
 
 class ArxivRoboticsAnalyzer:
-    def __init__(self):
+    def __init__(self, keywords=None):
         self.papers = []
-        self.search_terms = {
-            'VLA': [
-                'Vision-Language-Action Model',
-                'Vision-Language-Action',
-                'VLA',
-            ],
-            # 'Robotics Foundation Model': [
-            #     'Robotics Foundation Model',
-            #     'RMB',
-            #     'Robotic Foundation Model',
-            #     'Robot Foundation Model'
-            # ],
-            # 'Robotic Manipulation': [
-            #     'Robotic Manipulation',
-            #     'RM',
-            #     'Robotics Manipulation',
-            #     'Robot Manipulation'
-            # ]
-        }
-    
+
+        def _load_config(file_path):
+            with open(file_path, 'r') as file:
+                config = yaml.safe_load(file)
+            return config
+        
+        self.config = _load_config("./config/keywords.yaml")
+
+        self.search_terms = self.config.get("keywords", [])
+        print (self.search_terms)
+
     def search_arxiv_api(self, query, max_results=1000, start_year=2020):
         """Search papers using ArXiv API"""
         papers = []
@@ -74,7 +79,7 @@ class ArxivRoboticsAnalyzer:
             
             for term in terms:
                 print(f"Searching term: {term}")
-                query = f'all:"{term}" AND (cat:cs.RO OR cat:cs.AI OR cat:cs.CV OR cat:cs.LG)' # all: すべてのフィールドを検索している．
+                query = f'all:"{term}" AND (cat:cs.RO OR cat:cs.AI OR cat:cs.CV OR cat:cs.LG)' # all: すべてのフィールドを検索
                 papers = self.search_arxiv_api(query, max_results=500, start_year=start_year)
                 
                 for paper in papers:
@@ -99,32 +104,6 @@ class ArxivRoboticsAnalyzer:
         self.papers = list(unique_papers.values())
         print(f"\nTotal {len(self.papers)} papers retrieved")
         return self.papers
-    
-    # def calculate_relevance_scores(self):
-    #     """Calculate relevance scores for papers"""
-    #     for paper in self.papers:
-    #         score = 0
-    #         text = (paper['title'] + ' ' + paper['summary']).lower()
-            
-    #         # VLA related keywords
-    #         vla_keywords = ['vision-language-action', 'vla', 'multimodal robot', 'vision language action']
-    #         rfm_keywords = ['foundation model', 'foundation models', 'general purpose', 'generalist']
-    #         robot_keywords = ['robot', 'robotic', 'manipulation', 'embodied']
-            
-    #         # ChatGPTが提案したキーワードの関連性を評価する指標．
-    #         for keyword in vla_keywords:
-    #             if keyword in text:
-    #                 score += 3
-            
-    #         for keyword in rfm_keywords:
-    #             if keyword in text:
-    #                 score += 2
-            
-    #         for keyword in robot_keywords:
-    #             if keyword in text:
-    #                 score += 1
-                    
-    #         paper['relevance_score'] = score
     
     def get_citation_count_semantic_scholar(self, arxiv_id):
         """Get citation count from Semantic Scholar API"""
@@ -163,11 +142,13 @@ class ArxivRoboticsAnalyzer:
         """Fetch citation counts for all papers"""
         print("Fetching citation counts from Semantic Scholar...")
         
-        for paper in tqdm(self.papers, desc="📚 Fetching citations", unit="📄 paper"):
-            citation_data = self.get_citation_count_semantic_scholar(paper['arxiv_id'])
-            paper.update(citation_data)
-            time.sleep(0.1)  # 100ms delay between requests
-            
+        with tqdm(self.papers, desc="📚 Fetching citations", unit="papers", ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
+            for i, paper in enumerate(pbar, 1):
+                citation_data = self.get_citation_count_semantic_scholar(paper['arxiv_id'])
+                paper.update(citation_data)
+                pbar.set_postfix_str(f"Paper: {paper['arxiv_id']}", refresh=True)
+                time.sleep(0.05)  # 50ms delay between requests
+
         print("Citation count fetching completed.")
     
     def create_dataframe(self):
@@ -210,7 +191,8 @@ class ArxivRoboticsAnalyzer:
         
         print(f"\n=== Top {top_n} Papers (sorted by {sort_by}) ===")
         print("=" * 120)
-        
+
+        '''TBD
         for idx, paper in df_sorted.iterrows():
             print(f"\n[{paper['arxiv_id']}] {paper['title'][:80]}...")
             print(f"Authors: {paper['authors']}")
@@ -223,6 +205,7 @@ class ArxivRoboticsAnalyzer:
             
             print(f"ArXiv URL: https://arxiv.org/abs/{paper['arxiv_id']}")
             print("-" * 120)
+        '''
     
     def display_top_cited_papers(self, top_n=20):
         """Display most cited papers"""
@@ -249,195 +232,107 @@ class ArxivRoboticsAnalyzer:
             print(f"Category: {paper['category']} | Search Term: {paper['search_term']}")
             print("-" * 120)
     
-    def plot_publication_trends(self, save_path=None):
-        """Plot publication trends over time with enhanced visualizations"""
+    def plot_publication_trends(self, save_path=None, csv_path=None, tikz_path=None):
+        """Plot quarterly publication trends and export data"""
         if self.df is None:
             return
             
+        # Create quarter-year column for better x-axis labels
+        self.df['quarter'] = self.df['published_date'].dt.quarter
+        self.df['year_quarter'] = self.df['year'].astype(str) + '-Q' + self.df['quarter'].astype(str)
+        
+        # Group by year-quarter
+        quarterly_counts = self.df.groupby('year_quarter').size().sort_index()
+        
         # Set up the plotting style
         plt.style.use('seaborn-v0_8-darkgrid')
-        fig = plt.figure(figsize=(20, 16))
+        fig, ax = plt.subplots(figsize=(12, 6))
         
-        # Color palette
-        colors = plt.cm.Set3(np.linspace(0, 1, 12))
-        
-        # 1. Yearly publication trends with trend line
-        ax1 = plt.subplot(3, 4, 1)
-        yearly_counts = self.df.groupby('year').size()
-        bars = ax1.bar(yearly_counts.index, yearly_counts.values, color=colors[0], alpha=0.8, edgecolor='darkblue', linewidth=1.5)
-        
-        # Add trend line
-        z = np.polyfit(yearly_counts.index, yearly_counts.values, 1)
-        p = np.poly1d(z)
-        ax1.plot(yearly_counts.index, p(yearly_counts.index), "r--", alpha=0.8, linewidth=2, label=f'Trend (slope: {z[0]:.2f})')
+        # Create bar plot
+        bars = ax.bar(range(len(quarterly_counts)), quarterly_counts.values, 
+                     color='steelblue', alpha=0.8, edgecolor='darkblue', linewidth=1.5)
         
         # Add value labels on bars
-        for bar in bars:
-            height = bar.get_height()
-            ax1.annotate(f'{int(height)}', xy=(bar.get_x() + bar.get_width() / 2, height),
-                        xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontweight='bold')
-        
-        ax1.set_title('📈 Yearly Paper Submission Trends', fontsize=16, fontweight='bold', pad=20)
-        ax1.set_xlabel('Year', fontsize=12, fontweight='bold')
-        ax1.set_ylabel('Number of Papers', fontsize=12, fontweight='bold')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
-        
-        # 2. Category-wise publication with pie chart
-        ax2 = plt.subplot(3, 4, 2)
-        category_counts = self.df.groupby('category').size()
-        wedges, texts, autotexts = ax2.pie(category_counts.values, labels=category_counts.index, 
-                                          autopct='%1.1f%%', colors=colors[:len(category_counts)],
-                                          explode=[0.05] * len(category_counts), shadow=True, startangle=90)
-        
-        for autotext in autotexts:
-            autotext.set_color('white')
-            autotext.set_fontweight('bold')
-            autotext.set_fontsize(10)
-        
-        ax2.set_title('🎯 Research Category Distribution', fontsize=16, fontweight='bold', pad=20)
-        
-        # 3. Monthly trends (heatmap for recent years)
-        ax3 = plt.subplot(3, 4, 3)
-        recent_df = self.df[self.df['year'] >= 2022]
-        if not recent_df.empty:
-            monthly_pivot = recent_df.groupby(['year', 'month']).size().unstack(fill_value=0)
-            sns.heatmap(monthly_pivot, annot=True, fmt='d', cmap='YlOrRd', ax=ax3, 
-                       cbar_kws={'label': 'Number of Papers'})
-            ax3.set_title('🔥 Monthly Publication Heatmap (2022+)', fontsize=16, fontweight='bold', pad=20)
-            ax3.set_xlabel('Month', fontsize=12, fontweight='bold')
-            ax3.set_ylabel('Year', fontsize=12, fontweight='bold')
-        
-        # 4. Authors count distribution
-        ax4 = plt.subplot(3, 4, 4)
-        author_counts = self.df['num_authors'].value_counts().sort_index()
-        ax4.bar(author_counts.index, author_counts.values, color=colors[3], alpha=0.8, edgecolor='darkgreen')
-        ax4.set_title('👥 Author Count Distribution', fontsize=16, fontweight='bold', pad=20)
-        ax4.set_xlabel('Number of Authors', fontsize=12, fontweight='bold')
-        ax4.set_ylabel('Number of Papers', fontsize=12, fontweight='bold')
-        ax4.grid(True, alpha=0.3)
-        
-        # 5. Citation analysis if available
-        if 'citation_count' in self.df.columns and self.df['citation_count'].sum() > 0:
-            # Citation vs Year scatter plot
-            ax5 = plt.subplot(3, 4, 5)
-            cited_papers = self.df[self.df['citation_count'] > 0]
-            scatter = ax5.scatter(cited_papers['year'], cited_papers['citation_count'], 
-                                 c=cited_papers['citation_count'], cmap='viridis', 
-                                 s=cited_papers['citation_count']*2 + 20, alpha=0.6, edgecolors='black')
-            
-            plt.colorbar(scatter, ax=ax5, label='Citation Count')
-            ax5.set_title('📊 Citations vs Publication Year', fontsize=16, fontweight='bold', pad=20)
-            ax5.set_xlabel('Publication Year', fontsize=12, fontweight='bold')
-            ax5.set_ylabel('Citation Count', fontsize=12, fontweight='bold')
-            ax5.grid(True, alpha=0.3)
-            
-            # Citation distribution histogram
-            ax6 = plt.subplot(3, 4, 6)
-            citation_data = self.df['citation_count'][self.df['citation_count'] > 0]
-            n, bins, patches = ax6.hist(citation_data, bins=20, alpha=0.8, edgecolor='black', color=colors[5])
-            
-            # Color bars by value
-            for i, (patch, bin_val) in enumerate(zip(patches, bins[:-1])):
-                patch.set_facecolor(plt.cm.viridis(bin_val / max(bins)))
-            
-            ax6.set_title('📈 Citation Count Distribution', fontsize=16, fontweight='bold', pad=20)
-            ax6.set_xlabel('Citation Count', fontsize=12, fontweight='bold')
-            ax6.set_ylabel('Number of Papers', fontsize=12, fontweight='bold')
-            ax6.grid(True, alpha=0.3)
-            
-            # Top cited papers by category
-            ax7 = plt.subplot(3, 4, 7)
-            category_citations = self.df.groupby('category')['citation_count'].mean().sort_values(ascending=True)
-            bars = ax7.barh(category_citations.index, category_citations.values, color=colors[6], alpha=0.8)
-            
-            for i, bar in enumerate(bars):
-                width = bar.get_width()
-                ax7.annotate(f'{width:.1f}', xy=(width, bar.get_y() + bar.get_height() / 2),
-                           xytext=(3, 0), textcoords="offset points", ha='left', va='center', fontweight='bold')
-            
-            ax7.set_title('🏆 Average Citations by Category', fontsize=16, fontweight='bold', pad=20)
-            ax7.set_xlabel('Average Citation Count', fontsize=12, fontweight='bold')
-            ax7.grid(True, alpha=0.3)
-        
-        # 6. Abstract length distribution
-        ax8 = plt.subplot(3, 4, 8)
-        abstract_lengths = self.df['abstract_length']
-        ax8.hist(abstract_lengths, bins=30, alpha=0.8, color=colors[7], edgecolor='black')
-        ax8.axvline(abstract_lengths.mean(), color='red', linestyle='--', linewidth=2, 
-                   label=f'Mean: {abstract_lengths.mean():.0f}')
-        ax8.axvline(abstract_lengths.median(), color='orange', linestyle='--', linewidth=2, 
-                   label=f'Median: {abstract_lengths.median():.0f}')
-        ax8.set_title('📝 Abstract Length Distribution', fontsize=16, fontweight='bold', pad=20)
-        ax8.set_xlabel('Abstract Length (characters)', fontsize=12, fontweight='bold')
-        ax8.set_ylabel('Number of Papers', fontsize=12, fontweight='bold')
-        ax8.legend()
-        ax8.grid(True, alpha=0.3)
-        
-        # 7. Search term frequency
-        ax9 = plt.subplot(3, 4, 9)
-        term_counts = self.df['search_term'].value_counts()
-        bars = ax9.bar(range(len(term_counts)), term_counts.values, color=colors[8], alpha=0.8)
-        ax9.set_xticks(range(len(term_counts)))
-        ax9.set_xticklabels(term_counts.index, rotation=45, ha='right')
-        
         for i, bar in enumerate(bars):
             height = bar.get_height()
-            ax9.annotate(f'{int(height)}', xy=(bar.get_x() + bar.get_width() / 2, height),
-                        xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontweight='bold')
+            ax.annotate(f'{int(height)}', xy=(bar.get_x() + bar.get_width() / 2, height),
+                       xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontweight='bold')
         
-        ax9.set_title('🔍 Papers by Search Term', fontsize=16, fontweight='bold', pad=20)
-        ax9.set_ylabel('Number of Papers', fontsize=12, fontweight='bold')
-        ax9.grid(True, alpha=0.3)
+        # Set x-axis labels
+        ax.set_xticks(range(len(quarterly_counts)))
+        ax.set_xticklabels(quarterly_counts.index, rotation=45, ha='right')
         
-        # 8. Quarterly trends
-        ax10 = plt.subplot(3, 4, 10)
-        self.df['quarter'] = self.df['published_date'].dt.quarter
-        quarterly_data = self.df.groupby(['year', 'quarter']).size().unstack(fill_value=0)
-        
-        if not quarterly_data.empty:
-            quarterly_data.plot(kind='bar', stacked=True, ax=ax10, color=colors[9:13])
-            ax10.set_title('📅 Quarterly Publication Trends', fontsize=16, fontweight='bold', pad=20)
-            ax10.set_xlabel('Year', fontsize=12, fontweight='bold')
-            ax10.set_ylabel('Number of Papers', fontsize=12, fontweight='bold')
-            ax10.legend(title='Quarter', bbox_to_anchor=(1.05, 1), loc='upper left')
-            ax10.tick_params(axis='x', rotation=45)
-        
-        # 9. Category evolution over time
-        ax11 = plt.subplot(3, 4, 11)
-        category_yearly = self.df.groupby(['year', 'category']).size().unstack(fill_value=0)
-        category_yearly.plot(kind='area', stacked=True, ax=ax11, alpha=0.7, color=colors[:len(category_yearly.columns)])
-        ax11.set_title('🌊 Category Evolution Over Time', fontsize=16, fontweight='bold', pad=20)
-        ax11.set_xlabel('Year', fontsize=12, fontweight='bold')
-        ax11.set_ylabel('Number of Papers', fontsize=12, fontweight='bold')
-        ax11.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-        ax11.grid(True, alpha=0.3)
-        
-        # 10. Recent activity (last 12 months)
-        ax12 = plt.subplot(3, 4, 12)
-        recent_12_months = self.df[self.df['published_date'] >= (pd.Timestamp.now(tz='UTC') - timedelta(days=365))]
-        if not recent_12_months.empty:
-            monthly_recent = recent_12_months.groupby(recent_12_months['published_date'].dt.to_period('M')).size()
-            line = ax12.plot(monthly_recent.index.astype(str), monthly_recent.values, 
-                           marker='o', linewidth=3, markersize=8, color=colors[1])
-            ax12.fill_between(range(len(monthly_recent)), monthly_recent.values, alpha=0.3, color=colors[1])
-            
-            ax12.set_title('🚀 Recent Activity (Last 12 Months)', fontsize=16, fontweight='bold', pad=20)
-            ax12.set_xlabel('Month', fontsize=12, fontweight='bold')
-            ax12.set_ylabel('Number of Papers', fontsize=12, fontweight='bold')
-            ax12.tick_params(axis='x', rotation=45)
-            ax12.grid(True, alpha=0.3)
+        # Styling
+        ax.set_title('Quarterly Publication Trends', fontsize=16, fontweight='bold', pad=20)
+        ax.set_xlabel('Quarter', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Number of Papers', fontsize=12, fontweight='bold')
+        ax.grid(True, alpha=0.3)
         
         # Adjust layout
-        plt.tight_layout(pad=3.0)
+        plt.tight_layout()
         
-        # Add main title
-        fig.suptitle('🤖 ArXiv Robotics Research Analysis Dashboard', 
-                    fontsize=24, fontweight='bold', y=0.98)
-        
+        # Save plot
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"✅ Plot saved to {save_path}")
+        
         plt.show()
+        
+        # Export quarterly data to CSV
+        if csv_path:
+            quarterly_df = pd.DataFrame({
+                'Quarter': quarterly_counts.index,
+                'Papers': quarterly_counts.values
+            })
+            quarterly_df.to_csv(csv_path, index=False, encoding='utf-8')
+            print(f"✅ Quarterly data exported to {csv_path}")
+        
+        # Export TikZ code
+        if tikz_path:
+            self._export_tikz(quarterly_counts, tikz_path)
+            print(f"✅ TikZ code exported to {tikz_path}")
+    
+    def _export_tikz(self, quarterly_counts, tikz_path):
+        """Export quarterly data as TikZ code for LaTeX"""
+        tikz_code = []
+        tikz_code.append("\\begin{tikzpicture}")
+        tikz_code.append("\\begin{axis}[")
+        tikz_code.append("    xlabel={Quarter},")
+        tikz_code.append("    ylabel={Number of Papers},")
+        tikz_code.append("    title={Quarterly Publication Trends},")
+        tikz_code.append("    ybar,")
+        tikz_code.append("    bar width=0.8,")
+        tikz_code.append("    width=12cm,")
+        tikz_code.append("    height=6cm,")
+        tikz_code.append("    xtick=data,")
+        tikz_code.append("    xticklabel style={rotate=45, anchor=east},")
+        tikz_code.append("    nodes near coords,")
+        tikz_code.append("    grid=major,")
+        tikz_code.append("    grid style={dashed,gray!30},")
+        tikz_code.append("]")
+        
+        # Add data
+        tikz_code.append("\\addplot coordinates {")
+        for i, (quarter, count) in enumerate(quarterly_counts.items()):
+            tikz_code.append(f"    ({i},{count})")
+        tikz_code.append("};")
+        
+        # Add x-tick labels
+        tikz_code.append("\\pgfplotsset{")
+        tikz_code.append("    xticklabels={")
+        for i, quarter in enumerate(quarterly_counts.index):
+            tikz_code.append(f"        {quarter},")
+        tikz_code.append("    }")
+        tikz_code.append("}")
+        
+        tikz_code.append("\\end{axis}")
+        tikz_code.append("\\end{tikzpicture}")
+        
+        # Write to file
+        with open(tikz_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(tikz_code))
+        
+        return '\n'.join(tikz_code)
 
     def create_citation_analysis_plot(self, save_path=None):
         """Create detailed citation analysis plots"""
@@ -539,7 +434,7 @@ class ArxivRoboticsAnalyzer:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.show()
 
-    def export_data(self, csv_path='arxiv_robotics_papers.csv', excel_path=None):
+    def export_data(self, csv_path='./results/arxiv_robotics_papers.csv', excel_path=None):
         """Export paper data to CSV and optionally Excel format"""
         if self.df is None or self.df.empty:
             print("No data available for export.")
@@ -608,82 +503,3 @@ class ArxivRoboticsAnalyzer:
             return False
         
         return True
-
-def main():
-    """Main execution function"""
-    print("Starting ArXiv Robotics Foundation Model & VLA research trend analysis...")
-    
-    # Initialize analyzer
-    analyzer = ArxivRoboticsAnalyzer()
-    
-    # Search papers (from 2020)
-    print("Searching for papers...")
-    papers = analyzer.search_all_terms(start_year=2020)
-    
-    if not papers:
-        print("No papers found.")
-        return
-    
-    # Fetch citation counts
-    print("Fetching citation counts...")
-    analyzer.fetch_citation_counts()
-    
-    # Calculate relevance scores
-    # print("Calculating relevance scores...")
-    # analyzer.calculate_relevance_scores()
-    
-    # Create dataframe
-    print("Organizing data...")
-    df = analyzer.create_dataframe()
-    
-    # Display paper lists
-    print("Displaying paper lists...")
-    analyzer.display_paper_list(sort_by='published_date', top_n=30)
-    analyzer.display_top_cited_papers(top_n=15)
-    
-    # Visualize results
-    print("Generating enhanced plots...")
-    analyzer.plot_publication_trends(save_path='arxiv_robotics_trends.png')
-    analyzer.create_citation_analysis_plot(save_path='arxiv_citation_analysis.png')
-    
-    # Keyword analysis
-    print("Analyzing keywords...")
-    # top_keywords = analyzer.analyze_keywords(top_n=30)  # TODO: Implement this method
-    
-    # Report generation
-    print("Generating summary report...")
-    # analyzer.generate_summary_report(output_path='arxiv_robotics_analysis_report.md')  # TODO: Implement this method
-    
-    # Data export
-    print("Exporting data...")
-    analyzer.export_data(
-        csv_path='arxiv_robotics_papers.csv',
-        excel_path='arxiv_robotics_analysis.xlsx'
-    )
-    
-    print("\nAnalysis completed!")
-    print("Generated files:")
-    print("- arxiv_robotics_trends.png (trend plot)")
-    print("- arxiv_citation_analysis.png (citation analysis)")
-    print("- arxiv_robotics_papers.csv (paper data)")
-    print("- arxiv_robotics_analysis.xlsx (Excel analysis)")
-
-if __name__ == "__main__":
-    # Check for necessary library installations
-    try:
-        import arxiv
-        import matplotlib.pyplot as plt
-        import pandas as pd
-        import seaborn as sns
-        from wordcloud import WordCloud
-        from tqdm import tqdm
-    except ImportError as e:
-        print(f"Required libraries are not installed: {e}")
-        print("Please install with:")
-        print("pip install arxiv matplotlib pandas seaborn wordcloud openpyxl xlsxwriter")
-        exit(1)
-    
-    # Japanese font settings (optional)
-    plt.rcParams['font.family'] = ['DejaVu Sans']
-    
-    main()
