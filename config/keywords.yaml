@@ -1,6 +1,30 @@
-Search_Terms:
-    VLA: {
+name: ArXiv-Robotics-Analyzer
+version: 1.0.0
+description: A tool for analyzing robotics papers on ArXiv.
+
+# Keywords for searching papers: 
+# To ensure consistency in terminology, please provide both abbreviations and full official names in the fields below.
+keywords:
+    VLA: [
         'Vision-Language-Action Model',
         'Vision-Language-Action',
         'VLA',
-    }
+    ]
+    # Robotic-Manipulation: [
+    #     'Robotic Manipulation',
+    #     'RM',
+    #     'Robotics Manipulation',
+    #     'Robot Manipulation'
+    # ]
+    # Robotics-Foundation-Model: [
+    #     'Robotics Foundation Model',
+    #     'RFM',
+    #     'Robotics-Foundation-Model',
+    #     'Robot Foundation Model',
+    #     'Robotic Foundation Model'
+    # ]
+    # VLM: [
+    #     'Vision-Language Model',
+    #     'Vision-Language',
+    #     'VLM',
+    # ]

@@ -3,6 +3,8 @@ from collections import Counter
 import re
 import time
 import requests
+import yaml
+import numpy as np
 
 # Check for necessary library installations
 try:
@@ -14,35 +16,30 @@ try:
     import xml.etree.ElementTree as ET
     from urllib.parse import quote
     from tqdm import tqdm
+    from datetime import timedelta
 except ImportError as e:
     print(f"Required libraries are not installed: {e}")
     print("Please install with:")
     print("pip install arxiv matplotlib pandas seaborn wordcloud openpyxl xlsxwriter")
     exit(1)
 
+# Japanese font settings (optional)
+plt.rcParams['font.family'] = ['DejaVu Sans']
+
 class ArxivRoboticsAnalyzer:
-    def __init__(self):
+    def __init__(self, keywords=None):
         self.papers = []
-        self.search_terms = {
-            'VLA': [
-                'Vision-Language-Action Model',
-                'Vision-Language-Action',
-                'VLA',
-            ],
-            # 'Robotics Foundation Model': [
-            #     'Robotics Foundation Model',
-            #     'RMB',
-            #     'Robotic Foundation Model',
-            #     'Robot Foundation Model'
-            # ],
-            # 'Robotic Manipulation': [
-            #     'Robotic Manipulation',
-            #     'RM',
-            #     'Robotics Manipulation',
-            #     'Robot Manipulation'
-            # ]
-        }
-    
+
+        def _load_config(file_path):
+            with open(file_path, 'r') as file:
+                config = yaml.safe_load(file)
+            return config
+        
+        self.config = _load_config("./config/keywords.yaml")
+
+        self.search_terms = self.config.get("keywords", [])
+        print (self.search_terms)
+
     def search_arxiv_api(self, query, max_results=1000, start_year=2020):
         """Search papers using ArXiv API"""
         papers = []
@@ -82,7 +79,7 @@ class ArxivRoboticsAnalyzer:
             
             for term in terms:
                 print(f"Searching term: {term}")
-                query = f'all:"{term}" AND (cat:cs.RO OR cat:cs.AI OR cat:cs.CV OR cat:cs.LG)' # all: すべてのフィールドを検索している．
+                query = f'all:"{term}" AND (cat:cs.RO OR cat:cs.AI OR cat:cs.CV OR cat:cs.LG)' # all: すべてのフィールドを検索
                 papers = self.search_arxiv_api(query, max_results=500, start_year=start_year)
                 
                 for paper in papers:
@@ -145,11 +142,13 @@ class ArxivRoboticsAnalyzer:
         """Fetch citation counts for all papers"""
         print("Fetching citation counts from Semantic Scholar...")
         
-        for paper in tqdm(self.papers, desc="📚 Fetching citations", unit="📄 paper"):
-            citation_data = self.get_citation_count_semantic_scholar(paper['arxiv_id'])
-            paper.update(citation_data)
-            time.sleep(0.1)  # 100ms delay between requests
-            
+        with tqdm(self.papers, desc="📚 Fetching citations", unit="papers", ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
+            for i, paper in enumerate(pbar, 1):
+                citation_data = self.get_citation_count_semantic_scholar(paper['arxiv_id'])
+                paper.update(citation_data)
+                pbar.set_postfix_str(f"Paper: {paper['arxiv_id']}", refresh=True)
+                time.sleep(0.05)  # 50ms delay between requests
+
         print("Citation count fetching completed.")
     
     def create_dataframe(self):
@@ -192,7 +191,8 @@ class ArxivRoboticsAnalyzer:
         
         print(f"\n=== Top {top_n} Papers (sorted by {sort_by}) ===")
         print("=" * 120)
-        
+
+        '''TBD
         for idx, paper in df_sorted.iterrows():
             print(f"\n[{paper['arxiv_id']}] {paper['title'][:80]}...")
             print(f"Authors: {paper['authors']}")
@@ -205,6 +205,7 @@ class ArxivRoboticsAnalyzer:
             
             print(f"ArXiv URL: https://arxiv.org/abs/{paper['arxiv_id']}")
             print("-" * 120)
+        '''
     
     def display_top_cited_papers(self, top_n=20):
         """Display most cited papers"""
@@ -521,7 +522,7 @@ class ArxivRoboticsAnalyzer:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.show()
 
-    def export_data(self, csv_path='arxiv_robotics_papers.csv', excel_path=None):
+    def export_data(self, csv_path='./results/arxiv_robotics_papers.csv', excel_path=None):
         """Export paper data to CSV and optionally Excel format"""
         if self.df is None or self.df.empty:
             print("No data available for export.")
@@ -590,62 +591,3 @@ class ArxivRoboticsAnalyzer:
             return False
         
         return True
-
-def main():
-    """Main execution function"""
-    print("Starting ArXiv Robotics Foundation Model & VLA research trend analysis...")
-    
-    # Initialize analyzer
-    analyzer = ArxivRoboticsAnalyzer()
-    
-    # Search papers (from 2020)
-    print("Searching for papers...")
-    papers = analyzer.search_all_terms(start_year=2020)
-    
-    if not papers:
-        print("No papers found.")
-        return
-    
-    # Fetch citation counts
-    print("Fetching citation counts...")
-    analyzer.fetch_citation_counts()
-    
-    # Create dataframe
-    print("Organizing data...")
-    df = analyzer.create_dataframe()
-    
-    # Display paper lists
-    print("Displaying paper lists...")
-    analyzer.display_paper_list(sort_by='published_date', top_n=30)
-    analyzer.display_top_cited_papers(top_n=15)
-    
-    # Visualize results
-    print("Generating enhanced plots...")
-    analyzer.plot_publication_trends(save_path='arxiv_robotics_trends.png')
-    analyzer.create_citation_analysis_plot(save_path='arxiv_citation_analysis.png')
-    
-    # Keyword analysis
-    print("Analyzing keywords...")
-    # top_keywords = analyzer.analyze_keywords(top_n=30)  # TODO: Implement this method
-    
-    # Report generation
-    print("Generating summary report...")
-    # analyzer.generate_summary_report(output_path='arxiv_robotics_analysis_report.md')  # TODO: Implement this method
-    
-    # Data export
-    print("Exporting data...")
-    analyzer.export_data(
-        csv_path='arxiv_robotics_papers.csv',
-        excel_path='arxiv_robotics_analysis.xlsx'
-    )
-    
-    print("\nAnalysis completed!")
-    print("Generated files:")
-    print("- arxiv_robotics_trends.png (trend plot)")
-    print("- arxiv_citation_analysis.png (citation analysis)")
-    print("- arxiv_robotics_papers.csv (paper data)")
-
-if __name__ == "__main__":
-    # Japanese font settings (optional)
-    plt.rcParams['font.family'] = ['DejaVu Sans']
-    main()
