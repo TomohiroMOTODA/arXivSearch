@@ -1,16 +1,24 @@
-import arxiv
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-import seaborn as sns
-from collections import defaultdict, Counter
+from datetime import datetime
+from collections import Counter
 import re
 import time
-from wordcloud import WordCloud
 import requests
-import xml.etree.ElementTree as ET
-from urllib.parse import quote
+
+# Check for necessary library installations
+try:
+    import arxiv
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    import seaborn as sns
+    from wordcloud import WordCloud
+    import xml.etree.ElementTree as ET
+    from urllib.parse import quote
+    from tqdm import tqdm
+except ImportError as e:
+    print(f"Required libraries are not installed: {e}")
+    print("Please install with:")
+    print("pip install arxiv matplotlib pandas seaborn wordcloud openpyxl xlsxwriter")
+    exit(1)
 
 class ArxivRoboticsAnalyzer:
     def __init__(self):
@@ -99,32 +107,6 @@ class ArxivRoboticsAnalyzer:
         self.papers = list(unique_papers.values())
         print(f"\nTotal {len(self.papers)} papers retrieved")
         return self.papers
-    
-    # def calculate_relevance_scores(self):
-    #     """Calculate relevance scores for papers"""
-    #     for paper in self.papers:
-    #         score = 0
-    #         text = (paper['title'] + ' ' + paper['summary']).lower()
-            
-    #         # VLA related keywords
-    #         vla_keywords = ['vision-language-action', 'vla', 'multimodal robot', 'vision language action']
-    #         rfm_keywords = ['foundation model', 'foundation models', 'general purpose', 'generalist']
-    #         robot_keywords = ['robot', 'robotic', 'manipulation', 'embodied']
-            
-    #         # ChatGPTが提案したキーワードの関連性を評価する指標．
-    #         for keyword in vla_keywords:
-    #             if keyword in text:
-    #                 score += 3
-            
-    #         for keyword in rfm_keywords:
-    #             if keyword in text:
-    #                 score += 2
-            
-    #         for keyword in robot_keywords:
-    #             if keyword in text:
-    #                 score += 1
-                    
-    #         paper['relevance_score'] = score
     
     def get_citation_count_semantic_scholar(self, arxiv_id):
         """Get citation count from Semantic Scholar API"""
@@ -456,10 +438,6 @@ def main():
     print("Fetching citation counts...")
     analyzer.fetch_citation_counts()
     
-    # Calculate relevance scores
-    # print("Calculating relevance scores...")
-    # analyzer.calculate_relevance_scores()
-    
     # Create dataframe
     print("Organizing data...")
     df = analyzer.create_dataframe()
@@ -493,24 +471,8 @@ def main():
     print("- arxiv_robotics_trends.png (trend plot)")
     print("- arxiv_robotics_analysis_report.md (analysis report)")
     print("- arxiv_robotics_papers.csv (paper data)")
-    # print("- arxiv_robotics_analysis.xlsx (Excel analysis)")
 
 if __name__ == "__main__":
-    # Check for necessary library installations
-    try:
-        import arxiv
-        import matplotlib.pyplot as plt
-        import pandas as pd
-        import seaborn as sns
-        from wordcloud import WordCloud
-        from tqdm import tqdm
-    except ImportError as e:
-        print(f"Required libraries are not installed: {e}")
-        print("Please install with:")
-        print("pip install arxiv matplotlib pandas seaborn wordcloud openpyxl xlsxwriter")
-        exit(1)
-    
     # Japanese font settings (optional)
     plt.rcParams['font.family'] = ['DejaVu Sans']
-    
     main()
